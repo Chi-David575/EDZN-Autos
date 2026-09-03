@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EDZN Autos</title>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#0b1329">
+<link rel="icon" href="/icons/icon-192.png">
+<link rel="apple-touch-icon" href="/icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #f4f6fa; --surface: #ffffff; --surface2: #eef2f7; --surface3: #e2e8f0;
+  --line: #cbd5e1; --primary: #2563eb; --primary-dim: #93c5fd; --alert: #dc2626;
+  --text: #0f172a; --dim: #475569; --dim2: #94a3b8; --ok: #16a34a;
+  --radius: 10px; --maxw: 1080px;
+}
+[data-theme="dark"] {
+  --bg: #0b1329; --surface: #111c38; --surface2: #1b284d; --surface3: #243563;
+  --line: #2e437c; --primary: #3b82f6; --primary-dim: #1e3a8a; --alert: #ef4444;
+  --text: #f8fafc; --dim: #94a3b8; --dim2: #64748b; --ok: #22c55e;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:Inter,sans-serif;-webkit-font-smoothing:antialiased;transition:background .2s,color .2s;}
+body{padding-bottom:64px;}
+h1,h2,h3,.disp{font-family:Archivo,sans-serif;letter-spacing:-0.01em;}
+a{color:inherit;}
+button{font-family:Inter,sans-serif;cursor:pointer;}
+.lane{border:none;border-top:2px dashed var(--primary-dim);margin:20px 0;opacity:.6;}
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 16px;}
+/* topbar */
+#topbar{position:sticky;top:0;z-index:20;background:var(--surface);backdrop-filter:blur(6px);border-bottom:1px solid var(--line);transition:background .2s,border-color .2s;}
+#topbar .row{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;max-width:var(--maxw);margin:0 auto;}
+.logo{display:flex;align-items:center;gap:10px;cursor:pointer;}
+.logo .mark{width:34px;height:34px;border-radius:8px;background:linear-gradient(135deg,var(--primary),var(--primary-dim));display:flex;align-items:center;justify-content:center;font-family:Archivo;font-weight:800;color:#fff;font-size:15px;}
+.logo .name{font-family:Archivo;font-weight:700;font-size:18px;}
+.logo .tag{font-size:11px;color:var(--dim2);margin-top:-2px;}
+.top-actions{display:flex;align-items:center;gap:8px;}
+.sos-btn{background:var(--alert);color:#fff;border:none;padding:9px 14px;border-radius:999px;font-weight:700;font-size:13px;display:flex;align-items:center;gap:6px;animation:pulse 2.4s ease-in-out infinite;}
+.theme-btn{background:var(--surface2);border:1px solid var(--line);color:var(--text);width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(220,38,38,.45);}50%{box-shadow:0 0 0 8px rgba(220,38,38,0);}}
+@media (prefers-reduced-motion:reduce){.sos-btn{animation:none;}}
+/* nav */
+#deskNav{display:none;}
+@media (min-width:840px){
+  #deskNav{display:flex;gap:2px;padding:0 16px;max-width:var(--maxw);margin:0 auto;border-top:1px solid var(--line);overflow-x:auto;}
+  #deskNav button{background:none;border:none;color:var(--dim);padding:11px 12px;font-size:13px;font-weight:600;border-bottom:2px solid transparent;white-space:nowrap;}
+  #deskNav button.active{color:var(--primary);border-color:var(--primary);}
+  #bottomNav{display:none;}
+}
+#bottomNav{position:fixed;bottom:0;left:0;right:0;z-index:20;background:var(--surface);border-top:1px solid var(--line);display:flex;justify-content:space-around;padding:6px 2px;}
+#bottomNav button{background:none;border:none;color:var(--dim2);font-size:10px;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 4px;flex:1;font-weight:600;}
+#bottomNav button.active{color:var(--primary);}
+#bottomNav svg{width:19px;height:19px;}
+/* layout */
+#app{max-width:var(--maxw);margin:0 auto;padding:20px 16px 40px;}
+.hero{padding:28px 0 8px;}
+.hero h1{font-size:30px;margin:0 0 6px;}
+.hero p{color:var(--dim);margin:0;font-size:14.5px;max-width:52ch;}
+.grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:16px;}
+.card h3{margin:0 0 6px;font-size:16px;}
+.card p{margin:0 0 10px;color:var(--dim);font-size:13px;line-height:1.5;}
+/* Card Image Styles */
+.card-img {width:100%;height:140px;object-fit:cover;border-radius:6px;margin-bottom:10px;background:var(--surface2);}
+.action-card{display:flex;flex-direction:column;gap:8px;cursor:pointer;transition:border-color .15s;}
+.action-card:hover{border-color:var(--primary);}
+.action-card .ic{width:38px;height:38px;border-radius:8px;background:var(--surface2);display:flex;align-items:center;justify-content:center;}
+.action-card.urgent .ic{background:rgba(220,38,38,.15);}
+.action-card svg{width:19px;height:19px;stroke:var(--primary);}
+.action-card.urgent svg{stroke:var(--alert);}
+.btn{background:var(--primary);color:#fff;border:none;padding:10px 18px;border-radius:8px;font-weight:700;font-size:13.5px;}
+.btn.secondary{background:var(--surface2);color:var(--text);border:1px solid var(--line);}
+.btn.danger{background:var(--alert);color:#fff;}
+.btn.block{width:100%;}
+.btn:disabled{opacity:.5;cursor:not-allowed;}
+.field{margin-bottom:13px;}
+.field label{display:block;font-size:12.5px;color:var(--dim);margin-bottom:5px;font-weight:600;}
+input[type=text],input[type=tel],input[type=email],input[type=number],input[type=date],textarea,select{
+  width:100%;background:var(--surface2);border:1px solid var(--line);color:var(--text);padding:10px 11px;border-radius:8px;font-size:14px;font-family:Inter;}
+textarea{resize:vertical;min-height:70px;}
+.chips{display:flex;flex-wrap:wrap;gap:6px;}
+.chip{background:var(--surface2);border:1px solid var(--line);padding:5px 11px;border-radius:999px;font-size:12.5px;cursor:pointer;color:var(--dim);}
+.chip.on{background:var(--primary);color:#fff;border-color:var(--primary);font-weight:700;}
+.badge{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;background:var(--surface3);color:var(--dim);}
+.badge.ok{background:rgba(34,197,94,.15);color:var(--ok);}
+.badge.pending{background:rgba(59,130,246,.15);color:var(--primary);}
+.badge.alert{background:rgba(220,38,38,.15);color:var(--alert);}
+.section-title{display:flex;align-items:center;justify-content:space-between;margin:26px 0 12px;}
+.section-title h2{font-size:18px;margin:0;}
+.small{font-size:12px;color:var(--dim2);}
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:50;display:flex;align-items:flex-end;justify-content:center;}
+@media (min-width:640px){.modal-bg{align-items:center;}}
+.modal{background:var(--surface);border:1px solid var(--line);border-radius:14px 14px 0 0;max-width:520px;width:100%;max-height:88vh;overflow:auto;padding:20px;}
+@media (min-width:640px){.modal{border-radius:14px;}}
+.modal-close{float:right;background:none;border:none;color:var(--dim);font-size:20px;}
+.timeline{display:flex;flex-direction:column;gap:0;}
+.tl-item{display:flex;gap:12px;padding-bottom:16px;position:relative;}
+.tl-item:not(:last-child)::before{content:'';position:absolute;left:9px;top:20px;bottom:-4px;width:1px;background:var(--line);}
+.tl-dot{width:19px;height:19px;border-radius:50%;background:var(--surface3);border:2px solid var(--line);flex-shrink:0;margin-top:1px;}
+.tl-item.done .tl-dot{background:var(--ok);border-color:var(--ok);}
+.tl-item.active .tl-dot{background:var(--primary);border-color:var(--primary);}
+table{width:100%;border-collapse:collapse;font-size:12.5px;}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap;}
+th{color:var(--dim2);font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.03em;}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px;}
+.stat .num{font-family:Archivo;font-size:26px;font-weight:800;color:var(--primary);}
+.stat .lbl{font-size:12px;color:var(--dim2);}
+.chat-bubble{max-width:80%;padding:10px 13px;border-radius:12px;margin-bottom:8px;font-size:13.5px;line-height:1.5;}
+.chat-bubble.user{background:var(--primary);color:#fff;margin-left:auto;border-bottom-right-radius:2px;}
+.chat-bubble.ai{background:var(--surface2);border:1px solid var(--line);border-bottom-left-radius:2px;}
+.loc-pill{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--dim);}
+.loc-pill .dot{width:7px;height:7px;border-radius:50%;background:var(--ok);}
+.loc-pill.off .dot{background:var(--alert);}
+.toast{position:fixed;bottom:76px;left:50%;transform:translateX(-50%);background:var(--surface3);border:1px solid var(--line);padding:10px 16px;border-radius:8px;font-size:13px;z-index:60;box-shadow:0 4px 20px rgba(0,0,0,.4);}
+.empty{text-align:center;padding:40px 20px;color:var(--dim2);}
+::placeholder{color:var(--dim2);}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:16px;overflow-x:auto;}
+.tabs button{background:none;border:none;color:var(--dim);padding:9px 4px;margin-right:16px;font-size:13px;font-weight:600;border-bottom:2px solid transparent;white-space:nowrap;}
+.tabs button.active{color:var(--primary);border-color:var(--primary);}
+</style>
+</head>
+<body data-theme="dark">
+
+<div id="topbar">
+  <div class="row">
+    <div class="logo" data-action="nav" data-view="home">
+      <div class="mark">E</div>
+      <div><div class="name">EDZN Autos</div><div class="tag">Roadside &amp; auto care</div></div>
+    </div>
+    <div class="top-actions">
+      <button class="theme-btn" data-action="toggle-theme" title="Toggle Theme">
+        <svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+      </button>
+      <button class="sos-btn" data-action="nav" data-view="towing">⚠ SOS</button>
+    </div>
+  </div>
+  <nav id="deskNav"></nav>
+</div>
+
+<div id="app"><div class="empty">Loading EDZN Autos…</div></div>
+
+<nav id="bottomNav"></nav>
+
+<script>
+/* ---------------- API layer ---------------- */
+const API_BASE = 'https://YOUR-BACKEND-URL';
+
+const COLLECTION_PATHS = {
+  mechanics:'mechanics', partsSellers:'parts-sellers', dispatchRiders:'dispatch-riders',
+  parts:'parts', oilProducts:'oil-products', rentals:'rentals'
+};
+let DB = { mechanics:[], partsSellers:[], dispatchRiders:[], parts:[], oilProducts:[], rentals:[], orders:[], receipts:[] };
+let state = { session:{userId:null,isAdmin:false,adminPassword:null}, currentUserObj:null, adminUsers:null, adminOrders:null, adminReceipts:null,
+  view:'home', cart:[], aiMessages:[], aiThinking:false, mechFilter:'', partsFilter:'all', partsQuery:'', toast:null, regRole:null, theme:'dark' };
+
+async function api(path, opts={}){
+  const headers = Object.assign({'Content-Type':'application/json'}, opts.headers||{});
+  if(state.session.adminPassword) headers['x-admin-password'] = state.session.adminPassword;
+  const res = await fetch(API_BASE+path, Object.assign({}, opts, {headers}));
+  let data=null; try{ data = await res.json(); }catch(e){}
+  if(!res.ok){ const err = new Error((data&&data.error)||('Request failed ('+res.status+')')); err.data=data; err.status=res.status; throw err; }
+  return data;
+}
+const apiGet = (p)=>api(p);
+const apiPost = (p,body)=>api(p,{method:'POST', body: body!==undefined?JSON.stringify(body):undefined});
+const apiPatch = (p,body)=>api(p,{method:'PATCH', body: JSON.stringify(body)});
+const apiDelete = (p)=>api(p,{method:'DELETE'});
+
+function saveLocalSession(){ 
+  try{ 
+    localStorage.setItem('edzn_session', JSON.stringify({userId:state.session.userId, theme:state.theme})); 
+  }catch(e){} 
+}
+function loadLocalSession(){ 
+  try{ 
+    const raw = localStorage.getItem('edzn_session'); 
+    if(raw){ 
+      const parsed = JSON.parse(raw);
+      state.session.userId = parsed.userId||null; 
+      if(parsed.theme) state.theme = parsed.theme;
+    } 
+  }catch(e){} 
+}
+function clearLocalSession(){ try{ localStorage.removeItem('edzn_session'); }catch(e){} }
+
+async function loadCollections(){
+  await Promise.all(Object.entries(COLLECTION_PATHS).map(async ([key,path])=>{
+    try{ DB[key] = await apiGet('/api/'+path); }catch(e){ DB[key]=[]; }
+  }));
+}
+async function loadMyOrders(){
+  const u = currentUser(); if(!u){ DB.orders=[]; DB.receipts=[]; return; }
+  try{ DB.orders = await apiGet('/api/orders/user/'+u.id); }catch(e){ DB.orders=[]; }
+  try{ DB.receipts = await apiGet('/api/receipts/user/'+u.id); }catch(e){ DB.receipts=[]; }
+}
+
+function money(n){ return '₦' + Number(n||0).toLocaleString(); }
+function fmtTime(ts){ return new Date(ts).toLocaleString('en-NG',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}); }
+function currentUser(){ return state.currentUserObj; }
+function showToast(msg){ state.toast = msg; render(); setTimeout(()=>{ state.toast=null; renderToastOnly(); }, 2600); }
+function renderToastOnly(){ const el=document.getElementById('toastHolder'); if(el) el.remove(); }
+
+function requestLocation(cb){
+  if(!navigator.geolocation){ cb(null); return; }
+  const timer = setTimeout(()=>cb(null), 4500);
+  navigator.geolocation.getCurrentPosition(
+    pos=>{ clearTimeout(timer); cb({lat:pos.coords.latitude,lng:pos.coords.longitude,label:'GPS location shared'}); },
+    ()=>{ clearTimeout(timer); cb(null); },
+    {timeout:4000}
+  );
+}
+
+const NAV = [
+  {v:'home', label:'Home', icon:'home'},
+  {v:'towing', label:'Towing', icon:'truck'},
+  {v:'mechanicSOS', label:'Mechanic SOS', icon:'bolt'},
+  {v:'mechanics', label:'Mechanics', icon:'wrench'},
+  {v:'parts', label:'Parts', icon:'box'},
+  {v:'oil', label:'Oil & Gear', icon:'drop'},
+  {v:'rental', label:'Rent a Car', icon:'car'},
+  {v:'aiDoctor', label:'AI Car Doctor', icon:'ai'},
+  {v:'account', label:'Account', icon:'user'}
+];
+const ICONS = {
+  home:'<path d="M3 11l9-7 9 7"/><path d="M5 10v9h5v-6h4v6h5v-9"/>',
+  truck:'<rect x="1" y="7" width="13" height="9"/><path d="M14 10h4l4 4v2h-8z"/><circle cx="6" cy="18" r="1.6"/><circle cx="17" cy="18" r="1.6"/>',
+  bolt:'<path d="M13 2 4 14h6l-1 8 9-12h-6z"/>',
+  wrench:'<path d="M14.7 6.3a4 4 0 1 1-5.4 5.4L4 17l3 3 5.3-5.3a4 4 0 0 1 5.4-5.4L21 6l-3-3z"/>',
+  box:'<path d="M21 8 12 3 3 8l9 5 9-5z"/><path d="M3 8v9l9 5 9-5V8"/><path d="M12 13v9"/>',
+  drop:'<path d="M12 2s7 8 7 13a7 7 0 1 1-14 0c0-5 7-13 7-13z"/>',
+  car:'<path d="M3 13l2-6h14l2 6"/><rect x="2" y="13" width="20" height="6" rx="1.5"/><circle cx="7" cy="19" r="1.6"/><circle cx="17" cy="19" r="1.6"/>',
+  ai:'<circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/>',
+  user:'<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/>',
+  admin:'<rect x="3" y="4" width="18" height="14" rx="2"/><path d="M3 9h18"/><circle cx="8" cy="14" r="1"/>',
+  search:'<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>'
+};
+function svgIcon(name){ return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICONS[name]||''}</svg>`; }
+function svgIconInline(name){ return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">${ICONS[name]||''}</svg>`; }
+function escapeAttr(s){ return String(s).replace(/"/g,'&quot;'); }
+
+function updateThemeUI(){
+  document.body.setAttribute('data-theme', state.theme);
+  const icon = document.getElementById('themeIcon');
+  if(icon){
+    if(state.theme==='dark'){
+      icon.innerHTML = '<circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>';
+    } else {
+      icon.innerHTML = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
+    }
+  }
+}
+
+function renderNavs(){
+  const items = NAV.concat(state.session.isAdmin?[{v:'admin',label:'Admin',icon:'admin'}]:[]);
+  document.getElementById('deskNav').innerHTML = items.map(n=>`<button class="${state.view===n.v?'active':''}" data-action="nav" data-view="${n.v}">${n.label}</button>`).join('');
+  const bottomItems = [items[0],items[1],items[2],items[4],items[8]];
+  document.getElementById('bottomNav').innerHTML = bottomItems.map(n=>`<button class="${state.view===n.v?'active':''}" data-action="nav" data-view="${n.v}">${svgIcon(n.icon)}<span>${n.label}</span></button>`).join('');
+}
+
+function goto(view, extra){ state.view = view; Object.assign(state, extra||{}); render(); window.scrollTo({top:0}); }
+
+function viewHome(){
+  const u = currentUser();
+  return `
+  <div class="hero">
+    <h1>Wherever the road leaves you,<br>EDZN gets you moving again.</h1>
+    <p>Towing, emergency mechanics, parts, rentals and an AI that knows what's wrong with your engine — all in one place.</p>
+  </div>
+  <div class="grid" style="margin-top:18px;">
+    <div class="card action-card urgent" data-action="nav" data-view="towing"><div class="ic">${svgIcon('truck')}</div><h3>Request a towing van</h3><p>Broken down on the highway? Get a tow truck dispatched to your exact location.</p></div>
+    <div class="card action-card urgent" data-action="nav" data-view="mechanicSOS"><div class="ic">${svgIcon('bolt')}</div><h3>Emergency mechanic</h3><p>Stranded with a fault? Call a verified mechanic to come to you now.</p></div>
+    <div class="card action-card" data-action="nav" data-view="mechanics"><div class="ic">${svgIcon('wrench')}</div><h3>Find a mechanic</h3><p>Browse mechanics by specialty, cars serviced and rating.</p></div>
+    <div class="card action-card" data-action="nav" data-view="parts"><div class="ic">${svgIcon('box')}</div><h3>Buy car parts</h3><p>Engine, electrical and body parts from verified sellers.</p></div>
+    <div class="card action-card" data-action="nav" data-view="oil"><div class="ic">${svgIcon('drop')}</div><h3>Engine oil &amp; gear oil</h3><p>Genuine fluids delivered to you.</p></div>
+    <div class="card action-card" data-action="nav" data-view="rental"><div class="ic">${svgIcon('car')}</div><h3>Rent a car</h3><p>Car broken and can't wait? Get moving in a rental within minutes.</p></div>
+    <div class="card action-card" data-action="nav" data-view="aiDoctor"><div class="ic">${svgIcon('ai')}</div><h3>Ask the AI Car Doctor</h3><p>Describe the problem and get a likely diagnosis instantly.</p></div>
+    <div class="card action-card" data-action="nav" data-view="registerChoice"><div class="ic">${svgIcon('user')}</div><h3>Register as a provider</h3><p>Mechanic, parts seller or dispatch rider — join EDZN.</p></div>
+  </div>
+  <hr class="lane">
+  <div class="section-title"><h2>Recent activity</h2><button class="chip" data-action="nav" data-view="account">View all</button></div>
+  ${u ? recentOrdersHtml(u.id) : `<div class="empty">Sign in to see your orders and receipts here.</div>`}
+  `;
+}
+function recentOrdersHtml(userId){
+  const mine = DB.orders.filter(o=>o.userId===userId).slice(0,4);
+  if(mine.length===0) return `<div class="empty">No orders yet — try requesting a mechanic or browsing parts.</div>`;
+  return mine.map(o=>orderRowHtml(o)).join('');
+}
+function orderRowHtml(o){
+  const badge = o.status==='completed'?'ok':(o.status==='requested'?'pending':'pending');
+  return `<div class="card" style="margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:10px;cursor:pointer;" data-action="track" data-id="${o.id}">
+    <div><div style="font-weight:700;font-size:13.5px;">${o.type.replace('_',' ')}</div><div class="small">${o.id} · ${fmtTime(o.createdAt)}</div></div>
+    <span class="badge ${badge}">${o.stages[o.stages.length-1].label}</span>
+  </div>`;
+}
+
+function viewAuth(){
+  return `
+  <div class="hero"><h1>Welcome to EDZN Autos</h1><p>Create your car owner profile to order towing, mechanics, parts and more.</p></div>
+  <div class="card" style="max-width:420px;">
+    <div class="field"><label>Full name</label><input type="text" id="f-name" placeholder="e.g. Ada Obi"></div>
+    <div class="field"><label>Phone number</label><input type="tel" id="f-phone" placeholder="080..."></div>
+    <div class="field"><label>Email (optional)</label><input type="email" id="f-email" placeholder="you@email.com"></div>
+    <div class="field">
+      <label>Location — required for safety</label>
+      <p class="small" style="margin:0 0 8px;">EDZN uses your location so towing/mechanic requests can be traced and dispatched accurately.</p>
+      <button class="btn secondary block" data-action="grant-location" type="button">Enable location</button>
+      <div id="locStatus" class="loc-pill off" style="margin-top:8px;"><span class="dot"></span><span>Location not shared yet</span></div>
+    </div>
+    <button class="btn block" data-action="signup">Create profile &amp; continue</button>
+  </div>`;
+}
+
+function viewTowing(){
+  const u = currentUser();
+  if(!u) return guardAuth();
+  return `
+  <div class="hero"><h1>Towing van</h1><p>Tell us where you are and we'll dispatch the nearest available tow driver.</p></div>
+  <div class="card" style="max-width:480px;">
+    <div class="field"><label>Car make &amp; model</label><input type="text" id="t-car" placeholder="e.g. Toyota Camry 2015"></div>
+    <div class="field"><label>Your location</label><input type="text" id="t-loc" placeholder="e.g. Third Mainland Bridge, towards Lagos Island"></div>
+    <div class="field"><label>What happened?</label><textarea id="t-desc" placeholder="Engine won't start, tyre burst, accident, etc."></textarea></div>
+    <div class="field"><label>Contact number</label><input type="tel" id="t-phone" value="${u.phone||''}"></div>
+    <button class="btn danger block" data-action="submit-towing">Request towing van — ${money(15000)}–${money(35000)} est.</button>
+  </div>`;
+}
+
+function viewMechanicSOS(){
+  const u = currentUser();
+  if(!u) return guardAuth();
+  return `
+  <div class="hero"><h1>Emergency mechanic</h1><p>Describe the fault — a verified mechanic near you will be dispatched.</p></div>
+  <div class="card" style="max-width:480px;">
+    <div class="field"><label>Car make &amp; model</label><input type="text" id="e-car" placeholder="e.g. Honda Accord 2018"></div>
+    <div class="field"><label>Your location</label><input type="text" id="e-loc" placeholder="Where are you stranded?"></div>
+    <div class="field"><label>Describe the problem</label><textarea id="e-desc" placeholder="e.g. Car overheating, smoke from bonnet"></textarea></div>
+    <div class="field"><label>Contact number</label><input type="tel" id="e-phone" value="${u.phone||''}"></div>
+    <button class="btn danger block" data-action="submit-mechanic-sos">Call emergency mechanic — ${money(8000)}–${money(25000)} est.</button>
+  </div>`;
+}
+
+function viewMechanics(){
+  const specs = [...new Set(DB.mechanics.flatMap(m=>m.specialties))];
+  const list = DB.mechanics.filter(m=> !state.mechFilter || m.specialties.includes(state.mechFilter));
+  return `
+  <div class="hero"><h1>Find a mechanic</h1><p>Verified mechanics, filtered by what your car needs.</p></div>
+  <div class="chips" style="margin-bottom:16px;">
+    <span class="chip ${!state.mechFilter?'on':''}" data-action="mech-filter" data-f="">All</span>
+    ${specs.map(s=>`<span class="chip ${state.mechFilter===s?'on':''}" data-action="mech-filter" data-f="${s}">${s}</span>`).join('')}
+  </div>
+  <div class="grid">
+    ${list.map(m=>`
+    <div class="card">
+      ${m.photoUrl ? `<img src="${escapeAttr(m.photoUrl)}" alt="${escapeAttr(m.name)}" class="card-img">` : ''}
+      <div style="display:flex;justify-content:space-between;"><h3>${m.name}</h3>${m.verified?'<span class="badge ok">Verified</span>':'<span class="badge">Unverified</span>'}</div>
+      <p>${m.bio}</p>
+      <div class="chips" style="margin-bottom:10px;">${m.specialties.map(s=>`<span class="chip">${s}</span>`).join('')}</div>
+      <p class="small">Cars: ${m.carsServiced.join(', ')} · ★ ${m.rating} · ${m.location}</p>
+    </div>`).join('') || '<div class="empty">No mechanics match this filter.</div>'}
+  </div>`;
+}
+
+function viewParts(){
+  const cats = ['all', ...new Set(DB.parts.map(p=>p.category))];
+  const list = DB.parts.filter(p=> state.partsFilter==='all' || p.category===state.partsFilter);
+  return `
+  <div class="hero"><h1>Car parts</h1><p>Genuine parts from registered sellers across Lagos.</p></div>
+  <div class="chips" style="margin-bottom:16px;">${cats.map(c=>`<span class="chip ${state.partsFilter===c?'on':''}" data-action="parts-filter" data-f="${c}">${c==='all'?'All':c}</span>`).join('')}</div>
+  <div class="grid">
+    ${list.map(p=>{
+      const seller = DB.partsSellers.find(s=>s.id===p.sellerId);
+      return `<div class="card">
+        ${p.photoUrl ? `<img src="${escapeAttr(p.photoUrl)}" alt="${escapeAttr(p.name)}" class="card-img">` : ''}
+        <h3>${p.name}</h3>
+        <p>${p.category} · Sold by ${seller?seller.shopName:'EDZN Partner'}</p>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;">
+          <span style="font-weight:700;">${money(p.price)}</span>
+          <button class="btn secondary" data-action="cart-add" data-kind="parts" data-id="${p.id}">Add to cart</button>
+        </div>
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
+function viewOil(){
+  return `
+  <div class="hero"><h1>Engine &amp; gear oil</h1><p>Top up the fluids that keep your engine alive.</p></div>
+  <div class="grid">
+    ${DB.oilProducts.map(p=>`<div class="card">
+      ${p.photoUrl ? `<img src="${escapeAttr(p.photoUrl)}" alt="${escapeAttr(p.name)}" class="card-img">` : ''}
+      <h3>${p.name}</h3><p class="small">${p.stock} in stock</p>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;">
+        <span style="font-weight:700;">${money(p.price)}</span>
+        <button class="btn secondary" data-action="cart-add" data-kind="oil" data-id="${p.id}">Add to cart</button>
+      </div>
+    </div>`).join('')}
+  </div>`;
+}
+
+function viewRental(){
+  const u = currentUser(); if(!u) return guardAuth();
+  return `
+  <div class="hero"><h1>Rent a car</h1><p>Car in the shop and you can't wait? Get moving in one of these.</p></div>
+  <div class="grid">
+    ${DB.rentals.map(r=>`<div class="card">
+      ${r.photoUrl ? `<img src="${escapeAttr(r.photoUrl)}" alt="${escapeAttr(r.car)}" class="card-img">` : ''}
+      <h3>${r.car}</h3><p class="small">${r.seats} seats · ${r.status==='available'?'Available now':'Currently booked'}</p>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;">
+        <span style="font-weight:700;">${money(r.pricePerDay)}/day</span>
+        <button class="btn secondary" data-action="rent-open" data-id="${r.id}">Book</button>
+      </div>
+    </div>`).join('')}
+  </div>`;
+}
+
+function viewRegisterChoice(){
+  return `
+  <div class="hero"><h1>Register as a provider</h1><p>Join EDZN and start receiving jobs.</p></div>
+  <div class="grid">
+    <div class="card action-card" data-action="nav" data-view="registerMechanic"><div class="ic">${svgIcon('wrench')}</div><h3>Register as a mechanic</h3><p>List your specialties, cars serviced, and photo.</p></div>
+    <div class="card action-card" data-action="nav" data-view="registerSeller"><div class="ic">${svgIcon('box')}</div><h3>Register as a parts seller</h3><p>List your shop, stock, and photos of parts.</p></div>
+    <div class="card action-card" data-action="nav" data-view="registerRider"><div class="ic">${svgIcon('truck')}</div><h3>Register as a dispatch rider</h3><p>Offer delivery and towing-support services.</p></div>
+  </div>`;
+}
+
+function viewRegisterMechanic(){
+  const specOptions = ['Engine','Electrical','AC / Cooling','Suspension','Brakes','Transmission','Diagnostics','Body work'];
+  const chosen = state.regSpecs || [];
+  return `
+  <div class="hero"><h1>Mechanic registration</h1><p>Tell car owners what you can fix.</p></div>
+  <div class="card" style="max-width:480px;">
+    <div class="field"><label>Full name</label><input type="text" id="rm-name"></div>
+    <div class="field"><label>Phone number</label><input type="tel" id="rm-phone"></div>
+    <div class="field"><label>Profile Photo URL</label><input type="text" id="rm-photo" placeholder="https://example.com/photo.jpg"></div>
+    <div class="field"><label>Your workshop / base location</label><input type="text" id="rm-loc"></div>
+    <div class="field"><label>Specialties</label><div class="chips">${specOptions.map(s=>`<span class="chip ${chosen.includes(s)?'on':''}" data-action="toggle-spec" data-s="${s}">${s}</span>`).join('')}</div></div>
+    <div class="field"><label>Cars you service (comma separated)</label><input type="text" id="rm-cars" placeholder="Toyota, Honda, Lexus"></div>
+    <button class="btn block" data-action="submit-register-mechanic">Submit registration</button>
+  </div>`;
+}
+
+function viewRegisterSeller(){
+  return `
+  <div class="hero"><h1>Parts seller registration</h1><p>List your shop so car owners can find and buy from you.</p></div>
+  <div class="card" style="max-width:480px;">
+    <div class="field"><label>Shop name</label><input type="text" id="rs-name"></div>
+    <div class="field"><label>Phone number</label><input type="tel" id="rs-phone"></div>
+    <div class="field"><label>Shop location</label><input type="text" id="rs-shoploc" placeholder="e.g. Ladipo Market, Mushin"></div>
+    <button class="btn block" data-action="submit-register-seller">Submit registration</button>
+  </div>`;
+}
+
+function viewRegisterRider(){
+  return `
+  <div class="hero"><h1>Dispatch rider registration</h1><p>Offer delivery and support services on EDZN.</p></div>
+  <div class="card" style="max-width:480px;">
+    <div class="field"><label>Full name</label><input type="text" id="rr-name"></div>
+    <div class="field"><label>Phone number</label><input type="tel" id="rr-phone"></div>
+    <div class="field"><label>Profile / Vehicle Photo URL</label><input type="text" id="rr-photo" placeholder="https://example.com/rider.jpg"></div>
+    <button class="btn block" data-action="submit-register-rider">Submit registration</button>
+  </div>`;
+}
+
+function viewAiDoctor(){
+  const msgs = state.aiMessages;
+  return `
+  <div class="hero"><h1>AI Car Doctor</h1><p>Describe the symptoms — get a likely diagnosis and next step.</p></div>
+  <div class="card" style="min-height:260px;display:flex;flex-direction:column;">
+    <div id="chatLog" style="flex:1;overflow-y:auto;max-height:420px;padding-bottom:8px;">
+      ${msgs.length===0?`<p class="small">Try: "My car makes a grinding noise when I brake"</p>`:''}
+      ${msgs.map(m=>`<div class="chat-bubble ${m.role==='user'?'user':'ai'}">${m.text}</div>`).join('')}
+      ${state.aiThinking?`<div class="chat-bubble ai"><em>Thinking…</em></div>`:''}
+    </div>
+    <div style="display:flex;gap:8px;margin-top:10px;">
+      <input type="text" id="aiInput" placeholder="Describe the problem…" style="flex:1;">
+      <button class="btn" data-action="ai-send">Ask</button>
+    </div>
+  </div>`;
+}
+
+function viewAccount(){
+  const u = currentUser();
+  if(!u) return guardAuth();
+  const orders = DB.orders.filter(o=>o.userId===u.id);
+  return `
+  <div class="hero"><h1>${u.name}</h1><p>${u.phone} ${u.email?'· '+u.email:''}</p></div>
+  <hr class="lane">
+  <div class="section-title"><h2>Your orders</h2></div>
+  ${orders.length? orders.map(orderRowHtml).join('') : '<div class="empty">No orders yet.</div>'}
+  <hr class="lane">
+  <button class="btn secondary" data-action="logout">Sign out</button>
+  `;
+}
+
+function guardAuth(){ return `<div class="empty">Please create your EDZN profile first.<br><br><button class="btn" data-action="nav" data-view="auth">Get started</button></div>`; }
+
+const VIEWS = {
+  home:viewHome, auth:viewAuth, towing:viewTowing, mechanicSOS:viewMechanicSOS, mechanics:viewMechanics,
+  parts:viewParts, oil:viewOil, rental:viewRental, registerChoice:viewRegisterChoice,
+  registerMechanic:viewRegisterMechanic, registerSeller:viewRegisterSeller, registerRider:viewRegisterRider,
+  aiDoctor:viewAiDoctor, account:viewAccount
+};
+
+function render(){
+  updateThemeUI();
+  renderNavs();
+  const el = document.getElementById('app');
+  const fn = VIEWS[state.view] || viewHome;
+  el.innerHTML = fn() + (state.toast?`<div class="toast" id="toastHolder">${state.toast}</div>`:'');
+}
+
+let pendingLocation = null;
+document.addEventListener('click', async (e)=>{
+  const t = e.target.closest('[data-action]');
+  if(!t) return;
+  const a = t.dataset.action;
+
+  if(a==='toggle-theme'){
+    state.theme = state.theme==='dark'?'light':'dark';
+    saveLocalSession();
+    render();
+    return;
+  }
+  if(a==='nav'){
+    goto(t.dataset.view); return;
+  }
+  if(a==='grant-location'){
+    t.textContent = 'Requesting…';
+    requestLocation(loc=>{
+      pendingLocation = loc;
+      const s = document.getElementById('locStatus');
+      if(loc){ s.classList.remove('off'); s.querySelector('span:last-child').textContent = 'GPS location shared'; }
+      t.textContent = 'Location enabled ✓';
+    });
+    return;
+  }
+  if(a==='signup'){
+    const name = val('f-name'), phone = val('f-phone'), email = val('f-email');
+    if(!name || !phone){ showToast('Please enter your name and phone number.'); return; }
+    try{
+      const body = {name, phone, email};
+      if(pendingLocation){ body.lat=pendingLocation.lat; body.lng=pendingLocation.lng; body.locationLabel=pendingLocation.label; }
+      const user = await apiPost('/api/users/signup', body);
+      state.currentUserObj = user; state.session.userId = user.id; saveLocalSession();
+      await loadMyOrders();
+      showToast('Welcome to EDZN, '+user.name.split(' ')[0]+'!');
+      goto('home');
+    }catch(err){ showToast('Signup failed: '+err.message); }
+    return;
+  }
+  if(a==='toggle-spec'){
+    const s = t.dataset.s;
+    if(!state.regSpecs) state.regSpecs=[];
+    if(state.regSpecs.includes(s)) state.regSpecs = state.regSpecs.filter(x=>x!==s);
+    else state.regSpecs.push(s);
+    render();
+    return;
+  }
+  if(a==='ai-send'){ sendAi(); return; }
+  if(a==='logout'){
+    state.session.userId = null; state.currentUserObj = null; clearLocalSession();
+    goto('auth');
+    return;
+  }
+});
+
+function val(id){ const el=document.getElementById(id); return el?el.value.trim():''; }
+
+async function sendAi(){
+  const input = document.getElementById('aiInput');
+  const text = input.value.trim();
+  if(!text) return;
+  state.aiMessages.push({role:'user', text});
+  input.value=''; state.aiThinking = true; render();
+  try{
+    const data = await apiPost('/api/ai-doctor', { messages: state.aiMessages });
+    state.aiMessages.push({role:'ai', text: data.text || "Sorry, I couldn't process that."});
+  }catch(err){
+    state.aiMessages.push({role:'ai', text:"I couldn't reach the diagnostic service right now."});
+  }
+  state.aiThinking=false; render();
+}
+
+async function init(){
+  loadLocalSession();
+  await loadCollections();
+  if(state.session.userId){
+    try{
+      state.currentUserObj = await apiGet('/api/users/'+state.session.userId);
+      await loadMyOrders();
+    }catch(err){ state.session.userId=null; clearLocalSession(); }
+  }
+  state.view = state.session.userId ? 'home' : 'auth';
+  render();
+}
+init();
+</script>
+</body>
+</html>
