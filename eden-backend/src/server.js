@@ -3,11 +3,11 @@ const express = require('express');
 const cors = require('cors');
 const { pool } = require('./db');
 const { makeCollectionRouter } = require('../routes/collections');
-const usersRouter = require('../routes/users');
-const ordersRouter = require('../routes/orders');
-const receiptsRouter = require('../routes/receipts');
-const aiDoctorRouter = require('../routes/aiDoctor');
-const paymentsRouter = require('../routes/payments');
+const {usersRouter}= require('../routes/users');
+const {ordersRouter} = require('../routes/orders');
+const {receiptsRouter} = require('../routes/receipts');
+const {aiDoctorRouter} = require('../routes/aiDoctor');
+const {paymentsRouter} = require('../routes/payments');
 
 const app = express();
 
