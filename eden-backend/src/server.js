@@ -2,12 +2,12 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const { pool } = require('./db');
-const { makeCollectionRouter } = require('../../../routes/collections');
-const { usersRouter } = require('../../../routes/users');
-const { ordersRouter } = require('../../../routes/orders');
-const { receiptsRouter } = require('../../../routes/receipts');
-const { aiDoctorRouter } = require('../../../routes/aiDoctor');
-const { paymentsRouter } = require('../../../routes/payments');
+const collectionsRoute = require('../routes/collections');
+const aiDoctorRoute = require('../routes/aiDoctor');
+const ordersRoute = require('../routes/orders');
+const paymentsRoute = require('../routes/payments');
+const receiptsRoute = require('../routes/receipts');
+const usersRoute = require('../routes/users');
 
 const app = express();
 
