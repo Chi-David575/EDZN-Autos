@@ -123,6 +123,16 @@ app.use(
   })
 );
 
+app.get('/', (req, res) => {
+  res.json({
+    message: 'Welcome to the EDZN Autos API',
+    status: 'online',
+    documentation: '/health'
+  });
+});
+
+app.use((req, res) => res.status(404).json({ error: 'Not found' }));
+
 app.use((req, res) => res.status(404).json({ error: 'Not found' }));
 app.use((err, req, res, next) => {
   console.error(err);
