@@ -87,7 +87,7 @@ button{font-family:Inter,sans-serif;cursor:pointer;}
   overflow: hidden;
 }
 .card::before{
-  content:'';position:absolute.top:0;left:0;width:100%;height:2px;background:linear-gradient(90deg,transparent,rgba(0,240,255,0.4),transparent);opacity:0;transition:opacity 0.2s;
+  content:'';position:absolute;top:0;left:0;width:100%;height:2px;background:linear-gradient(90deg,transparent,rgba(0,240,255,0.4),transparent);opacity:0;transition:opacity 0.2s;
 }
 .card:hover{
   border-color: rgba(0, 240, 255, 0.35);
@@ -98,7 +98,6 @@ button{font-family:Inter,sans-serif;cursor:pointer;}
 .card h3{margin:0 0 8px;font-size:17px;font-weight:700;}
 .card p{margin:0 0 14px;color:var(--dim);font-size:14px;line-height:1.5;}
 
-/* Card Image Styles */
 .card-img {width:100%;height:160px;object-fit:cover;border-radius:12px;margin-bottom:14px;background:var(--surface2);border:1px solid var(--line);}
 .action-card{display:flex;flex-direction:column;gap:12px;cursor:pointer;}
 .action-card .ic{width:46px;height:46px;border-radius:12px;background:var(--surface2);display:flex;align-items:center;justify-content:center;transition:background 0.2s, transform 0.2s;border:1px solid var(--line);}
@@ -126,7 +125,7 @@ button{font-family:Inter,sans-serif;cursor:pointer;}
 
 .field{margin-bottom:18px;}
 .field label{display:block;font-size:13px;color:var(--dim);margin-bottom:8px;font-weight:700;letter-spacing:0.02em;}
-input[type=text],input[type=tel],input[type=email],input[type=number],input[type=date],textarea,select{
+input[type=text],input[type=tel],input[type=email],input[type=password],input[type=number],input[type=date],textarea,select{
   width:100%;background:rgba(7,9,14,0.6);border:1px solid var(--line);color:var(--text);padding:13px 16px;border-radius:12px;font-size:14px;font-family:Inter;outline:none;transition:all 0.2s;}
 input:focus,textarea:focus,select:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(0,240,255,0.25);}
 textarea{resize:vertical;min-height:90px;}
@@ -144,11 +143,6 @@ textarea{resize:vertical;min-height:90px;}
 .section-title{display:flex;align-items:center;justify-content:space-between;margin:36px 0 18px;}
 .section-title h2{font-size:22px;margin:0;font-weight:800;}
 .small{font-size:13px;color:var(--dim2);line-height:1.4;}
-
-.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(6px);z-index:50;display:flex;align-items:flex-end;justify-content:center;}
-@media (min-width:640px){.modal-bg{align-items:center;}}
-.modal{background:var(--surface);border:1px solid var(--line);border-radius:24px 24px 0 0;max-width:540px;width:100%;max-height:88vh;overflow:auto;padding:28px;}
-@media (min-width:640px){.modal{border-radius:24px;}}
 
 .chat-bubble{max-width:85%;padding:14px 18px;border-radius:16px;margin-bottom:12px;font-size:14.5px;line-height:1.55;}
 .chat-bubble.user{background:linear-gradient(135deg, #00f0ff, #0077ff);color:#07090e;font-weight:600;margin-left:auto;border-bottom-right-radius:4px;box-shadow:0 4px 15px rgba(0,240,255,0.2);}
@@ -188,10 +182,10 @@ textarea{resize:vertical;min-height:90px;}
 const API_BASE = 'https://edzn-backend.onrender.com';
 
 const COLLECTION_PATHS = {
-  mechanics:'mechanics', partsSellers:'parts-sellers', dispatchRiders:'dispatch-riders',
+  mechanics:'mechanics', partsSellers:'parts-sellers', dispatchRiders:'dispatch-riders', towingRiders:'towing-riders',
   parts:'parts', oilProducts:'oil-products', rentals:'rentals'
 };
-let DB = { mechanics:[], partsSellers:[], dispatchRiders:[], parts:[], oilProducts:[], rentals:[], orders:[], receipts:[] };
+let DB = { mechanics:[], partsSellers:[], dispatchRiders:[], towingRiders:[], parts:[], oilProducts:[], rentals:[], orders:[], receipts:[] };
 let state = { session:{userId:null,isAdmin:false,adminPassword:null}, currentUserObj:null, adminUsers:null, adminOrders:null, adminReceipts:null,
   view:'home', cart:[], aiMessages:[], aiThinking:false, mechFilter:'', partsFilter:'all', partsQuery:'', toast:null, regRole:null, theme:'dark' };
 
@@ -321,7 +315,7 @@ function viewHome(){
     <div class="card action-card" data-action="nav" data-view="rental"><div class="ic">${svgIcon('car')}</div><h3>Rent a car</h3><p>Car broken and can't wait? Get moving in a rental within minutes.</p></div>
     <div class="card action-card" data-action="nav" data-view="riders"><div class="ic">${svgIcon('rider')}</div><h3>Dispatch riders</h3><p>Reliable logistics for fast part deliveries and roadside assistance.</p></div>
     <div class="card action-card" data-action="nav" data-view="aiDoctor"><div class="ic">${svgIcon('ai')}</div><h3>Ask the AI Car Doctor</h3><p>Describe the problem and get a likely engine diagnosis instantly.</p></div>
-    <div class="card action-card" data-action="nav" data-view="registerChoice"><div class="ic">${svgIcon('user')}</div><h3>Register as a provider</h3><p>Mechanic, parts seller or dispatch rider — join EDZN.</p></div>
+    <div class="card action-card" data-action="nav" data-view="registerChoice"><div class="ic">${svgIcon('user')}</div><h3>Register as a provider</h3><p>Mechanic, parts seller, dispatch rider or towing partner — join EDZN.</p></div>
   </div>
   <hr class="lane">
   <div class="section-title"><h2>Recent activity</h2><button class="chip" data-action="nav" data-view="account">View all</button></div>
@@ -486,6 +480,7 @@ function viewRegisterChoice(){
     <div class="card action-card" data-action="nav" data-view="registerMechanic"><div class="ic">${svgIcon('wrench')}</div><h3>Register as a mechanic</h3><p>List your specialties, cars serviced, and photo.</p></div>
     <div class="card action-card" data-action="nav" data-view="registerSeller"><div class="ic">${svgIcon('box')}</div><h3>Register as a parts seller</h3><p>List your shop, stock, and photos of parts.</p></div>
     <div class="card action-card" data-action="nav" data-view="registerRider"><div class="ic">${svgIcon('rider')}</div><h3>Register as a dispatch rider</h3><p>Offer delivery and towing-support services.</p></div>
+    <div class="card action-card urgent" data-action="nav" data-view="registerTowing"><div class="ic">${svgIcon('truck')}</div><h3>Register as a towing rider</h3><p>Offer towing van and roadside recovery services.</p></div>
   </div>`;
 }
 
@@ -496,6 +491,8 @@ function viewRegisterMechanic(){
   <div class="hero"><h1>Mechanic registration</h1><p>Tell car owners what you can fix.</p></div>
   <div class="card" style="max-width:480px;">
     <div class="field"><label>Full name</label><input type="text" id="rm-name"></div>
+    <div class="field"><label>Email</label><input type="email" id="rm-email" placeholder="you@email.com"></div>
+    <div class="field"><label>Password</label><input type="password" id="rm-password" placeholder="••••••••"></div>
     <div class="field"><label>Phone number</label><input type="tel" id="rm-phone"></div>
     <div class="field"><label>Profile Photo URL</label><input type="text" id="rm-photo" placeholder="https://example.com/photo.jpg"></div>
     <div class="field"><label>Your workshop / base location</label><input type="text" id="rm-loc"></div>
@@ -510,8 +507,11 @@ function viewRegisterSeller(){
   <div class="hero"><h1>Parts seller registration</h1><p>List your shop so car owners can find and buy from you.</p></div>
   <div class="card" style="max-width:480px;">
     <div class="field"><label>Shop name</label><input type="text" id="rs-name"></div>
+    <div class="field"><label>Email</label><input type="email" id="rs-email" placeholder="you@email.com"></div>
+    <div class="field"><label>Password</label><input type="password" id="rs-password" placeholder="••••••••"></div>
     <div class="field"><label>Phone number</label><input type="tel" id="rs-phone"></div>
     <div class="field"><label>Shop location</label><input type="text" id="rs-shoploc" placeholder="e.g. Ladipo Market, Mushin"></div>
+    <div class="field"><label>House / Dispatch location</label><input type="text" id="rs-houseloc" placeholder="e.g. Ikeja, Lagos"></div>
     <button class="btn block" data-action="submit-register-seller">Submit registration</button>
   </div>`;
 }
@@ -521,9 +521,28 @@ function viewRegisterRider(){
   <div class="hero"><h1>Dispatch rider registration</h1><p>Offer delivery and support services on EDZN.</p></div>
   <div class="card" style="max-width:480px;">
     <div class="field"><label>Full name</label><input type="text" id="rr-name"></div>
+    <div class="field"><label>Email</label><input type="email" id="rr-email" placeholder="you@email.com"></div>
+    <div class="field"><label>Password</label><input type="password" id="rr-password" placeholder="••••••••"></div>
     <div class="field"><label>Phone number</label><input type="tel" id="rr-phone"></div>
+    <div class="field"><label>Vehicle type</label><input type="text" id="rr-vehicle" placeholder="e.g. Motorcycle"></div>
+    <div class="field"><label>Location / Base</label><input type="text" id="rr-loc" placeholder="e.g. Victoria Island, Lagos"></div>
     <div class="field"><label>Profile / Vehicle Photo URL</label><input type="text" id="rr-photo" placeholder="https://example.com/rider.jpg"></div>
     <button class="btn block" data-action="submit-register-rider">Submit registration</button>
+  </div>`;
+}
+
+function viewRegisterTowing(){
+  return `
+  <div class="hero"><h1>Towing rider registration</h1><p>Join EDZN to receive emergency towing requests from stranded drivers.</p></div>
+  <div class="card" style="max-width:480px;">
+    <div class="field"><label>Full name / Company name</label><input type="text" id="rt-name"></div>
+    <div class="field"><label>Email</label><input type="email" id="rt-email" placeholder="you@email.com"></div>
+    <div class="field"><label>Password</label><input type="password" id="rt-password" placeholder="••••••••"></div>
+    <div class="field"><label>Phone number</label><input type="tel" id="rt-phone"></div>
+    <div class="field"><label>Tow Truck / Vehicle description</label><input type="text" id="rt-vehicle" placeholder="e.g. Flatbed Tow Truck"></div>
+    <div class="field"><label>Base location / Coverage area</label><input type="text" id="rt-loc" placeholder="e.g. Ikeja, Lagos"></div>
+    <div class="field"><label>Truck / Profile Photo URL</label><input type="text" id="rt-photo" placeholder="https://example.com/towtruck.jpg"></div>
+    <button class="btn danger block" data-action="submit-register-towing">Submit towing registration</button>
   </div>`;
 }
 
@@ -542,6 +561,34 @@ function viewAiDoctor(){
       <button class="btn" data-action="ai-send">Ask AI</button>
     </div>
   </div>`;
+}
+
+import React, { useState } from 'react';
+
+export default function SubscriptionModal({ isOpen, onClose }) {
+    const handleSubscribe = async (planType) => {
+        // Trigger payment initialization API
+        const res = await fetch('/api/payments/initialize-subscription', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ planType })
+        });
+        const data = await res.json();
+        window.location.href = data.authorization_url; // Redirect to payment gateway
+    };
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="glass-modal">
+            <h2>Upgrade to EDZN Autos Pro</h2>
+            <p>Unlock unlimited diagnostic scans and priority dispatch matching.</p>
+            <button onClick={() => handleSubscribe('monthly')} className="btn-primary">
+                Subscribe for ₦3,000 / month
+            </button>
+            <button onClick={onClose} className="btn-secondary">Cancel</button>
+        </div>
+    );
 }
 
 function viewAccount(){
@@ -564,7 +611,7 @@ const VIEWS = {
   home:viewHome, auth:viewAuth, towing:viewTowing, mechanicSOS:viewMechanicSOS, mechanics:viewMechanics,
   parts:viewParts, oil:viewOil, rental:viewRental, riders:viewRiders, registerChoice:viewRegisterChoice,
   registerMechanic:viewRegisterMechanic, registerSeller:viewRegisterSeller, registerRider:viewRegisterRider,
-  aiDoctor:viewAiDoctor, account:viewAccount
+  registerTowing:viewRegisterTowing, aiDoctor:viewAiDoctor, account:viewAccount
 };
 
 function render(){
@@ -622,6 +669,88 @@ document.addEventListener('click', async (e)=>{
     render();
     return;
   }
+
+  if(a==='submit-register-mechanic'){
+    const data = {
+      name: val('rm-name'),
+      email: val('rm-email'),
+      password: val('rm-password'),
+      phone: val('rm-phone'),
+      photoUrl: val('rm-photo'),
+      location: val('rm-loc'),
+      specialties: state.regSpecs || [],
+      carsServiced: val('rm-cars').split(',').map(s=>s.trim()).filter(Boolean)
+    };
+    if(!data.name || !data.phone || !data.password){ showToast('Name, phone, and password are required.'); return; }
+    try{
+      await apiPost('/api/mechanics/register', data);
+      showToast('Mechanic registered and account secured!');
+      state.regSpecs = [];
+      await loadCollections();
+      goto('mechanics');
+    }catch(err){ showToast('Registration failed: '+(err.data?.error||err.message)); }
+    return;
+  }
+
+  if(a==='submit-register-seller'){
+    const data = {
+      shopName: val('rs-name'),
+      email: val('rs-email'),
+      password: val('rs-password'),
+      phone: val('rs-phone'),
+      shopLocation: val('rs-shoploc'),
+      houseLocation: val('rs-houseloc') || val('rs-shoploc')
+    };
+    if(!data.shopName || !data.phone || !data.password || !data.houseLocation){ showToast('Shop name, phone, password, and location are required.'); return; }
+    try{
+      await apiPost('/api/parts-sellers/register', data);
+      showToast('Parts seller registered and account secured!');
+      await loadCollections();
+      goto('parts');
+    }catch(err){ showToast('Registration failed: '+(err.data?.error||err.message)); }
+    return;
+  }
+
+  if(a==='submit-register-rider'){
+    const data = {
+      name: val('rr-name'),
+      email: val('rr-email'),
+      password: val('rr-password'),
+      phone: val('rr-phone'),
+      vehicle: val('rr-vehicle'),
+      location: val('rr-loc'),
+      photoUrl: val('rr-photo')
+    };
+    if(!data.name || !data.phone || !data.password){ showToast('Name, phone, and password are required.'); return; }
+    try{
+      await apiPost('/api/dispatch-riders/register', data);
+      showToast('Dispatch rider registered and account secured!');
+      await loadCollections();
+      goto('riders');
+    }catch(err){ showToast('Registration failed: '+(err.data?.error||err.message)); }
+    return;
+  }
+
+  if(a==='submit-register-towing'){
+    const data = {
+      name: val('rt-name'),
+      email: val('rt-email'),
+      password: val('rt-password'),
+      phone: val('rt-phone'),
+      vehicle: val('rt-vehicle'),
+      location: val('rt-loc'),
+      photoUrl: val('rt-photo')
+    };
+    if(!data.name || !data.phone || !data.password){ showToast('Name, phone, and password are required.'); return; }
+    try{
+      await apiPost('/api/towing-riders/register', data);
+      showToast('Towing rider registered and account secured!');
+      await loadCollections();
+      goto('towing');
+    }catch(err){ showToast('Registration failed: '+(err.data?.error||err.message)); }
+    return;
+  }
+
   if(a==='ai-send'){ sendAi(); return; }
   if(a==='logout'){
     state.session.userId = null; state.currentUserObj = null; clearLocalSession();

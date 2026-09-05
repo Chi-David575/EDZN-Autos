@@ -3,11 +3,15 @@ const express = require('express');
 const cors = require('cors');
 const { pool } = require('./db');
 const { makeCollectionRouter } = require('../routes/collections');
-const {usersRouter}= require('../routes/users');
-const {ordersRouter} = require('../routes/orders');
-const {receiptsRouter} = require('../routes/receipts');
-const {aiDoctorRouter} = require('../routes/aiDoctor');
-const {paymentsRouter} = require('../routes/payments');
+const { usersRouter } = require('../routes/users');
+const { ordersRouter } = require('../routes/orders');
+const { receiptsRouter } = require('../routes/receipts');
+const { aiDoctorRouter } = require('../routes/aiDoctor');
+const { paymentsRouter } = require('../routes/payments');
+const { mechanicsRouter } = require('./routes/mechanics');
+const { partsSellersRouter } = require('./routes/partsSellers');
+const { dispatchRidersRouter } = require('./routes/dispatchRiders');
+const { towingRidersRouter } = require('./routes/towingRiders');
 
 const app = express();
 
@@ -19,11 +23,7 @@ app.use(
   })
 );
 
-// The Paystack webhook needs the RAW request body to verify the signature,
-// so it must be mounted with express.raw() *before* the global express.json()
-// middleware below (which would otherwise consume/parse the body first).
 app.use('/api/payments/webhook', express.raw({ type: 'application/json' }));
-
 app.use(express.json());
 
 app.get('/health', (req, res) => res.json({ ok: true, service: 'edzn-autos-backend' }));
@@ -33,6 +33,10 @@ app.use('/api/orders', ordersRouter(pool));
 app.use('/api/receipts', receiptsRouter(pool));
 app.use('/api/ai-doctor', aiDoctorRouter());
 app.use('/api/payments', paymentsRouter(pool));
+app.use('/api/mechanics', mechanicsRouter(pool));
+app.use('/api/parts-sellers', partsSellersRouter(pool));
+app.use('/api/dispatch-riders', dispatchRidersRouter(pool));
+app.use('/api/towing-riders', towingRidersRouter(pool));
 
 app.use(
   '/api/mechanics',
@@ -40,6 +44,8 @@ app.use(
     table: 'mechanics',
     fields: [
       { js: 'name', sql: 'name', required: true },
+      { js: 'email', sql: 'email' },
+      { js: 'password', sql: 'password' },
       { js: 'phone', sql: 'phone', required: true },
       { js: 'location', sql: 'location' },
       { js: 'specialties', sql: 'specialties' },
@@ -48,6 +54,7 @@ app.use(
       { js: 'bio', sql: 'bio' },
       { js: 'rating', sql: 'rating' },
       { js: 'verified', sql: 'verified' },
+      { js: 'photoUrl', sql: 'photo_url' },
       { js: 'userId', sql: 'user_id' }
     ]
   })
@@ -59,6 +66,8 @@ app.use(
     table: 'parts_sellers',
     fields: [
       { js: 'shopName', sql: 'shop_name', required: true },
+      { js: 'email', sql: 'email' },
+      { js: 'password', sql: 'password' },
       { js: 'phone', sql: 'phone', required: true },
       { js: 'shopLocation', sql: 'shop_location' },
       { js: 'houseLocation', sql: 'house_location', required: true },
@@ -74,11 +83,31 @@ app.use(
     table: 'dispatch_riders',
     fields: [
       { js: 'name', sql: 'name', required: true },
+      { js: 'email', sql: 'email' },
+      { js: 'password', sql: 'password' },
       { js: 'phone', sql: 'phone', required: true },
       { js: 'vehicle', sql: 'vehicle' },
       { js: 'location', sql: 'location' },
       { js: 'rating', sql: 'rating' },
       { js: 'status', sql: 'status' },
+      { js: 'photoUrl', sql: 'photo_url' },
+      { js: 'userId', sql: 'user_id' }
+    ]
+  })
+);
+
+app.use(
+  '/api/towing-riders',
+  makeCollectionRouter(pool, {
+    table: 'towing_riders',
+    fields: [
+      { js: 'name', sql: 'name', required: true },
+      { js: 'email', sql: 'email', required: true },
+      { js: 'password', sql: 'password', required: true },
+      { js: 'phone', sql: 'phone', required: true },
+      { js: 'vehicle', sql: 'vehicle' },
+      { js: 'location', sql: 'location' },
+      { js: 'photoUrl', sql: 'photo_url' },
       { js: 'userId', sql: 'user_id' }
     ]
   })
@@ -131,7 +160,6 @@ app.get('/', (req, res) => {
   });
 });
 
-app.use((req, res) => res.status(404).json({ error: 'Not found' }));
 
 app.use((req, res) => res.status(404).json({ error: 'Not found' }));
 app.use((err, req, res, next) => {
