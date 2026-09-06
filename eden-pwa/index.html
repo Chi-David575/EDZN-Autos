@@ -244,6 +244,47 @@ textarea{resize:vertical;min-height:90px;}
 /* ---------------- API layer ---------------- */
 const API_BASE = 'https://edzn-backend.onrender.com';
 
+let trackingInterval = null;
+
+function startProviderTracking(providerId) {
+    if (!("geolocation" in navigator)) {
+        alert("Geolocation is not supported by your device");
+        return;
+    }
+
+    // Ping location every 10 seconds
+    trackingInterval = setInterval(() => {
+        navigator.geolocation.getCurrentPosition(
+            async (position) => {
+                const latitude = position.coords.latitude;
+                const longitude = position.coords.longitude;
+
+                try {
+                    await fetch('/api/providers/update-location', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ providerId, latitude, longitude })
+                    });
+                    console.log(`Location synced: ${latitude}, ${longitude}`);
+                } catch (err) {
+                    console.error("Failed to sync location with server:", err);
+                }
+            },
+            (error) => {
+                console.warn("GPS tracking error:", error.message);
+            },
+            { enableHighAccuracy: true, timeout: 8000 }
+        );
+    }, 10000);
+}
+
+function stopProviderTracking() {
+    if (trackingInterval) {
+        clearInterval(trackingInterval);
+        trackingInterval = null;
+    }
+}
+
 const COLLECTION_PATHS = {
   mechanics:'mechanics', partsSellers:'parts-sellers', dispatchRiders:'dispatch-riders', towingRiders:'towing-riders',
   parts:'parts', oilProducts:'oil-products', rentals:'rentals'

@@ -26,6 +26,36 @@ app.use(
 app.use('/api/payments/webhook', express.raw({ type: 'application/json' }));
 app.use(express.json());
 
+// POST /api/providers/update-location (Moved here where 'app' is defined!)
+app.post('/api/providers/update-location', async (req, res) => {
+    try {
+        const { providerId, latitude, longitude } = req.body;
+
+        // Update the provider's coordinates and set them as online/active
+        // Using PostGIS ST_SetSRID(ST_MakePoint(longitude, latitude), 4326)
+        const query = `
+            UPDATE service_providers 
+            SET location = ST_SetSRID(ST_MakePoint($1, $2), 4326),
+                last_updated = NOW(),
+                is_online = true
+            WHERE id = $3
+            RETURNING id, is_online, last_updated;
+        `;
+        
+        const values = [longitude, latitude, providerId];
+        const result = await pool.query(query, values);
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Provider not found' });
+        }
+
+        res.json({ success: true, data: result.rows[0] });
+    } catch (err) {
+        console.error('Error updating provider location:', err);
+        res.status(500).json({ error: 'Server error updating location' });
+    }
+});
+
 app.get('/health', (req, res) => res.json({ ok: true, service: 'edzn-autos-backend' }));
 
 app.use('/api/users', usersRouter(pool));
@@ -159,7 +189,6 @@ app.get('/', (req, res) => {
     documentation: '/health'
   });
 });
-
 
 app.use((req, res) => res.status(404).json({ error: 'Not found' }));
 app.use((err, req, res, next) => {
