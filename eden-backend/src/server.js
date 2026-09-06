@@ -8,10 +8,10 @@ const { ordersRouter } = require('../routes/orders');
 const { receiptsRouter } = require('../routes/receipts');
 const { aiDoctorRouter } = require('../routes/aiDoctor');
 const { paymentsRouter } = require('../routes/payments');
-const { mechanicsRouter } = require('./routes/mechanics');
-const { partsSellersRouter } = require('./routes/partsSellers');
-const { dispatchRidersRouter } = require('./routes/dispatchRiders');
-const { towingRidersRouter } = require('./routes/towingRiders');
+const { mechanicsRouter } = require('../routes/mechanics');
+const { partsSellersRouter } = require('../routes/partsSellers');
+const { dispatchRidersRouter } = require('../routes/dispatchRiders');
+const { towingRidersRouter } = require('../routes/towingRiders');
 
 const app = express();
 
