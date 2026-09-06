@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>EDZN Autos</title>
-<link rel="manifest" href="/manifest.json">
+<link rel="manifest" href="./manifest.json">
 <meta name="theme-color" content="#07090e">
 <link rel="icon" href="/icons/icon-192.png">
 <link rel="apple-touch-icon" href="/icons/icon-192.png">
@@ -565,15 +565,12 @@ function viewAiDoctor(){
   </div>`;
 }
 
-import React, { useState } from 'react';
-
-export default function SubscriptionModal({ isOpen, onClose }) {
-    const handleSubscribe = async (planType) => {
+window.handleSubscribe = async (plantType) => {
         // Trigger payment initialization API
         const res = await fetch('/api/payments/initialize-subscription', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ planType })
+            body: JSON.stringify({ plantType })
         });
         const data = await res.json();
         window.location.href = data.authorization_url; // Redirect to payment gateway
@@ -591,7 +588,6 @@ export default function SubscriptionModal({ isOpen, onClose }) {
             <button onClick={onClose} className="btn-secondary">Cancel</button>
         </div>
     );
-}
 
 function viewAccount(){
   const u = currentUser();
