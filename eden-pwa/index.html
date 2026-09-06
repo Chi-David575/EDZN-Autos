@@ -576,18 +576,25 @@ window.handleSubscribe = async (plantType) => {
         window.location.href = data.authorization_url; // Redirect to payment gateway
     };
 
-    if (!isOpen) return null;
-
-    return (
-        <div className="glass-modal">
-            <h2>Upgrade to EDZN Autos Pro</h2>
-            <p>Unlock unlimited diagnostic scans and priority dispatch matching.</p>
-            <button onClick={() => handleSubscribe('monthly')} className="btn-primary">
-                Subscribe for ₦3,000 / month
-            </button>
-            <button onClick={onClose} className="btn-secondary">Cancel</button>
-        </div>
-    );
+   window.openSubscriptionModal = () => {
+    // Check if modal already exists, or create/show it dynamically
+    let modalContainer = document.getElementById('subscriptionModal');
+    if (!modalContainer) {
+        modalContainer = document.createElement('div');
+        modalContainer.id = 'subscriptionModal';
+        modalContainer.innerHTML = `
+            <div class="glass-modal">
+                <h2>Upgrade to EDZN Autos Pro</h2>
+                <p>Unlock unlimited diagnostic scans and priority dispatch matching.</p>
+                <button onclick="window.handleSubscribe('monthly')" class="btn-primary">
+                    Subscribe for ₦3,000 / month
+                </button>
+                <button onclick="document.getElementById('subscriptionModal').remove()" class="btn-secondary">Cancel</button>
+            </div>
+        `;
+        document.body.appendChild(modalContainer);
+    }
+};
 
 function viewAccount(){
   const u = currentUser();
