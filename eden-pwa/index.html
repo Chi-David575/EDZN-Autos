@@ -10,6 +10,10 @@
 <link rel="apple-touch-icon" href="/icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<!-- Leaflet CSS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <style>
 :root {
   --bg: #f5f8fd; --surface: #ffffff; --surface2: #eef2fa; --surface3: #e1e8f5;
@@ -245,6 +249,7 @@ textarea{resize:vertical;min-height:90px;}
 const API_BASE = 'https://edzn-backend.onrender.com';
 
 let trackingInterval = null;
+const currentProviderId = localStorage.getItem('providerId') || 1; 
 
 function startProviderTracking(providerId) {
     if (!("geolocation" in navigator)) {
@@ -260,12 +265,20 @@ function startProviderTracking(providerId) {
                 const longitude = position.coords.longitude;
 
                 try {
-                    await fetch('/api/providers/update-location', {
+                    const response = await fetch(`${API_BASE}/api/providers/update-location`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ providerId, latitude, longitude })
+                        body: JSON.stringify({ 
+                            providerId: providerId, 
+                            latitude: latitude, 
+                            longitude: longitude 
+                        })
                     });
-                    console.log(`Location synced: ${latitude}, ${longitude}`);
+                    
+                    const data = await response.json();
+                    if (data.success) {
+                        console.log(`GPS Synced: Lat ${latitude}, Lng ${longitude}`);
+                    }
                 } catch (err) {
                     console.error("Failed to sync location with server:", err);
                 }
@@ -282,6 +295,7 @@ function stopProviderTracking() {
     if (trackingInterval) {
         clearInterval(trackingInterval);
         trackingInterval = null;
+        console.log("GPS tracking stopped.");
     }
 }
 
@@ -352,6 +366,7 @@ function requestLocation(cb){
 
 const NAV = [
   {v:'home', label:'Home', icon:'home'},
+  {v:'liveMap', label:'Live Map', icon:'bolt'},
   {v:'towing', label:'Towing', icon:'truck'},
   {v:'mechanicSOS', label:'Mechanic SOS', icon:'bolt'},
   {v:'mechanics', label:'Mechanics', icon:'wrench'},
@@ -399,7 +414,7 @@ function updateThemeUI(){
 function renderNavs(){
   const items = NAV.concat(state.session.isAdmin?[{v:'admin',label:'Admin',icon:'admin'}]:[]);
   document.getElementById('deskNav').innerHTML = items.map(n=>`<button class="${state.view===n.v?'active':''}" data-action="nav" data-view="${n.v}">${n.label}</button>`).join('');
-  const bottomItems = [items[0],items[1],items[2],items[4],items[9]]; // Home, Towing, SOS, Parts, Account
+  const bottomItems = [items[0],items[2],items[3],items[5],items[10]]; // Home, Towing, SOS, Parts, Account
   document.getElementById('bottomNav').innerHTML = bottomItems.map(n=>`<button class="${state.view===n.v?'active':''}" data-action="nav" data-view="${n.v}">${svgIcon(n.icon)}<span>${n.label}</span></button>`).join('');
 }
 
@@ -412,6 +427,18 @@ function viewHome(){
     <h1>Wherever the road leaves you,<br>EDZN gets you moving again.</h1>
     <p>Towing, emergency mechanics, parts, rentals, dispatch riders and an AI that diagnoses your car — all in one platform.</p>
   </div>
+  
+  <!-- Provider Live Tracking Toggle Switch Section -->
+  <div class="card" style="margin-bottom: 24px; border-color: var(--primary);">
+    <h3>Provider Station Mode</h3>
+    <p>Flip this switch online when you are on duty to continuously sync your live GPS coordinates for dispatch.</p>
+    <div class="status-container" style="padding: 15px; background: var(--surface2); border-radius: 8px; color: var(--text); border: 1px solid var(--line);">
+        <label style="display:flex; align-items:center; gap: 10px; cursor:pointer; font-weight:700;">
+            <input type="checkbox" id="providerStatusToggle" style="width: 20px; height: 20px;"> Go Online & Share Location
+        </label>
+    </div>
+  </div>
+
   <div class="grid" style="margin-top:20px;">
     <div class="card action-card urgent" data-action="nav" data-view="towing"><div class="ic">${svgIcon('truck')}</div><h3>Request a towing van</h3><p>Broken down on the highway? Get a tow truck dispatched to your exact location.</p></div>
     <div class="card action-card urgent" data-action="nav" data-view="mechanicSOS"><div class="ic">${svgIcon('bolt')}</div><h3>Emergency mechanic</h3><p>Stranded with a fault? Call a verified mechanic to come to you now.</p></div>
@@ -426,6 +453,67 @@ function viewHome(){
   <hr class="lane">
   <div class="section-title"><h2>Recent activity</h2><button class="chip" data-action="nav" data-view="account">View all</button></div>
   ${u ? recentOrdersHtml(u.id) : `<div class="empty">Sign in to see your orders and receipts here.</div>`}
+  `;
+}
+
+function viewLiveMap() {
+    return `
+    <div class="hero">
+        <h1>Live Fleet &amp; Provider Map</h1>
+        <p>Track active mechanics, dispatch riders, and towing vans in real-time across Lagos.</p>
+    </div>
+    <div class="card" style="padding: 12px;">
+        <div id="map" style="width: 100%; height: 450px; border-radius: 12px; z-index: 1;"></div>
+    </div>
+    `;
+}
+
+function viewTrackOrder() {
+  const o = state.activeOrder;
+  if (!o) return `<div class="empty">No order selected.<br><br><button class="btn" data-action="nav" data-view="home">Back to Home</button></div>`;
+
+  const stages = o.stages || [
+    { label: 'Request Received', done: true, time: o.createdAt },
+    { label: 'Provider Assigned', done: o.status !== 'requested', time: o.assignedAt },
+    { label: 'In Progress / En Route', done: o.status === 'in_progress' || o.status === 'completed', time: null },
+    { label: 'Completed', done: o.status === 'completed', time: o.completedAt }
+  ];
+
+  return `
+  <div class="hero">
+    <h1>Tracking Order</h1>
+    <p>Order ID: ${o.id} · Type: <b>${o.type.replace('_', ' ')}</b></p>
+  </div>
+  <div class="card" style="max-width: 600px; margin: 0 auto;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+      <div>
+        <span class="badge ${o.status === 'completed' ? 'ok' : 'pending'}">${o.status.toUpperCase()}</span>
+        <div class="small" style="margin-top: 4px;">Created: ${fmtTime(o.createdAt)}</div>
+      </div>
+      ${o.providerPhone ? `<a href="tel:${o.providerPhone}" class="btn secondary">Call Provider</a>` : ''}
+    </div>
+
+    <hr class="lane" style="margin: 16px 0;">
+
+    <h3>Progress Timeline</h3>
+    <div style="display: flex; flex-direction: column; gap: 16px; margin-top: 16px;">
+      ${stages.map((st, idx) => `
+        <div style="display: flex; gap: 14px; align-items: flex-start;">
+          <div style="width: 24px; height: 24px; border-radius: 50%; background: ${st.done ? 'var(--ok)' : 'var(--surface3)'}; color: ${st.done ? '#fff' : 'var(--dim2)'}; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800; flex-shrink: 0;">
+            ${st.done ? '✓' : idx + 1}
+          </div>
+          <div>
+            <div style="font-weight: 700; color: ${st.done ? 'var(--text)' : 'var(--dim)'};">${st.label}</div>
+            ${st.time ? `<div class="small">${fmtTime(st.time)}</div>` : ''}
+          </div>
+        </div>
+      `).join('')}
+    </div>
+
+    <div style="margin-top: 28px;">
+      <button class="btn secondary block" data-action="nav" data-view="home">Back to Home</button>
+    </div>
+  </div>
   `;
 }
 
@@ -670,18 +758,16 @@ function viewAiDoctor(){
 }
 
 window.handleSubscribe = async (plantType) => {
-        // Trigger payment initialization API
-        const res = await fetch('/api/payments/initialize-subscription', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ plantType })
-        });
-        const data = await res.json();
-        window.location.href = data.authorization_url; // Redirect to payment gateway
-    };
+    const res = await fetch(`${API_BASE}/api/payments/initialize-subscription`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plantType })
+    });
+    const data = await res.json();
+    window.location.href = data.authorization_url;
+};
 
-   window.openSubscriptionModal = () => {
-    // Check if modal already exists, or create/show it dynamically
+window.openSubscriptionModal = () => {
     let modalContainer = document.getElementById('subscriptionModal');
     if (!modalContainer) {
         modalContainer = document.createElement('div');
@@ -717,11 +803,48 @@ function viewAccount(){
 function guardAuth(){ return `<div class="empty">Please create your EDZN profile first.<br><br><button class="btn" data-action="nav" data-view="auth" style="margin-top:16px;">Get started</button></div>`; }
 
 const VIEWS = {
-  home:viewHome, auth:viewAuth, towing:viewTowing, mechanicSOS:viewMechanicSOS, mechanics:viewMechanics,
+  home:viewHome, liveMap:viewLiveMap, auth:viewAuth, towing:viewTowing, mechanicSOS:viewMechanicSOS, mechanics:viewMechanics,
   parts:viewParts, oil:viewOil, rental:viewRental, riders:viewRiders, registerChoice:viewRegisterChoice,
   registerMechanic:viewRegisterMechanic, registerSeller:viewRegisterSeller, registerRider:viewRegisterRider,
   registerTowing:viewRegisterTowing, aiDoctor:viewAiDoctor, account:viewAccount
 };
+
+let mapInstance = null;
+let providerMarkers = [];
+
+async function initLiveMap() {
+    const lagosLat = 6.5244;
+    const lagosLng = 3.3792;
+
+    if (!mapInstance) {
+        mapInstance = L.map('map').setView([lagosLat, lagosLng], 13);
+        
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(mapInstance);
+    } else {
+        mapInstance.invalidateSize();
+    }
+
+    try {
+        const res = await fetch(`${API_BASE}/api/providers/active`);
+        const providers = await res.json();
+
+        providerMarkers.forEach(m => mapInstance.removeLayer(m));
+        providerMarkers = [];
+
+        providers.forEach(p => {
+            if (p.latitude && p.longitude) {
+                const marker = L.marker([p.latitude, p.longitude]).addTo(mapInstance)
+                    .bindPopup(`<b>${p.name}</b><br>${p.role || 'Provider'}<br><a href="tel:${p.phone}">Call</a>`);
+                providerMarkers.push(marker);
+            }
+        });
+    } catch (err) {
+        console.error("Failed to load provider locations for map:", err);
+    }
+}
 
 function render(){
   updateThemeUI();
@@ -730,8 +853,28 @@ function render(){
   const fn = VIEWS[state.view] || viewHome;
   el.innerHTML = fn() + (state.toast?`<div class="toast" id="toastHolder">${state.toast}</div>`:'');
   el.classList.remove('view-anim');
-  void el.offsetWidth; // force reflow so the animation restarts on every view change
+  void el.offsetWidth;
   el.classList.add('view-anim');
+
+  if(state.view === 'liveMap'){
+    setTimeout(initLiveMap, 100);
+  }
+
+  const statusToggle = document.getElementById('providerStatusToggle');
+  if (statusToggle) {
+      statusToggle.removeEventListener('change', handleToggleChange);
+      statusToggle.addEventListener('change', handleToggleChange);
+  }
+}
+
+function handleToggleChange(event) {
+    if (event.target.checked) {
+        startProviderTracking(currentProviderId);
+        showToast("You are now online. Location tracking active.");
+    } else {
+        stopProviderTracking();
+        showToast("You are now offline.");
+    }
 }
 
 let pendingLocation = null;
@@ -902,7 +1045,6 @@ async function init(){
 }
 init();
 
-/* decorative ripple effect on buttons/chips — purely visual, never blocks the real action handler above */
 document.addEventListener('click', (e)=>{
   const el = e.target.closest('.btn,.chip,.sos-btn,.theme-btn');
   if(!el) return;
