@@ -14,6 +14,11 @@ create table if not exists users (
   lat double precision,
   lng double precision,
   location_label text default 'Not shared',
+  otp_code text,
+  otp_expires_at timestamptz,
+  is_verified boolean default false,
+  subscription_status varchar(20) default 'inactive',
+  subscription_expires_at timestamptz,
   created_at timestamptz not null default now()
 );
 
@@ -58,16 +63,20 @@ create table if not exists dispatch_riders (
   created_at timestamptz not null default now()
 );
 
-CREATE TABLE IF NOT EXISTS towing_riders (
-  id SERIAL PRIMARY KEY,
-  name TEXT NOT NULL,
-  email TEXT UNIQUE NOT NULL,
-  password TEXT NOT NULL,
-  phone TEXT NOT NULL,
-  vehicle TEXT,
-  location TEXT,
-  photo_url TEXT,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+create table if not exists towing_riders (
+  id serial primary key,
+  user_id text references users(id) on delete set null,
+  name text not null,
+  email text unique not null,
+  password text not null,
+  phone text not null,
+  vehicle text,
+  location text,
+  photo_url text,
+  otp_code text,
+  otp_expires_at timestamptz,
+  is_verified boolean default false,
+  created_at timestamp default current_timestamp
 );
 
 create table if not exists parts (
@@ -114,8 +123,6 @@ create table if not exists orders (
   created_at timestamptz not null default now()
 );
 
--- Evidence trail: every completed transaction gets a receipt row.
--- This is the record the security/fraud-tracing feature relies on.
 create table if not exists receipts (
   id text primary key default ('RCPT-' || upper(encode(gen_random_bytes(5), 'hex'))),
   order_id text references orders(id) on delete cascade,
@@ -138,134 +145,52 @@ create table if not exists payments (
   created_at timestamptz not null default now()
 );
 
-const bcrypt = require('bcrypt');
-
-// In your User Schema/Model (MongoDB / SQL / etc.):
-// Add passwordHash: String
-
-// 1. Updated Signup Route
-app.post('/api/users/signup', async (req, res) => {
-  try {
-    const { name, phone, email, password, lat, lng, locationLabel } = req.body;
-    if (!name || !phone || !password) {
-      return res.status(400).json({ error: 'Name, phone, and password are required.' });
-    }
-    
-    // Hash the password securely
-    const saltRounds = 10;
-    const passwordHash = await bcrypt.hash(password, saltRounds);
-
-    // Save user to database with passwordHash...
-    // const newUser = await User.create({ name, phone, email, passwordHash, lat, lng, locationLabel });
-    
-    res.json({ id: newUser.id, name: newUser.name, phone: newUser.phone, email: newUser.email });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// 2. New Login Route
-app.post('/api/users/login', async (req, res) => {
-  try {
-    const { phone, password } = req.body;
-    if (!phone || !password) {
-      return res.status(400).json({ error: 'Phone and password are required.' });
-    }
-
-    // Find user by phone
-    // const user = await User.findOne({ phone });
-    if (!user) return res.status(404).json({ error: 'User not found.' });
-
-    // Compare password hashes
-    const match = await bcrypt.compare(password, user.passwordHash);
-    if (!match) return res.status(401).json({ error: 'Incorrect password.' });
-
-    res.json({ id: user.id, name: user.name, phone: user.phone, email: user.email });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
--- 1. Users Table
-ALTER TABLE users 
-ADD COLUMN IF NOT EXISTS otp_code TEXT,
-ADD COLUMN IF NOT EXISTS otp_expires_at TIMESTAMP,
-ADD COLUMN IF NOT EXISTS is_verified BOOLEAN DEFAULT false;
-
--- 2. Mechanics Table
-ALTER TABLE mechanics 
-ADD COLUMN IF NOT EXISTS otp_code TEXT,
-ADD COLUMN IF NOT EXISTS otp_expires_at TIMESTAMP,
-ADD COLUMN IF NOT EXISTS is_verified BOOLEAN DEFAULT false;
-
--- 3. Parts Sellers Table
-ALTER TABLE parts_sellers 
-ADD COLUMN IF NOT EXISTS otp_code TEXT,
-ADD COLUMN IF NOT EXISTS otp_expires_at TIMESTAMP,
-ADD COLUMN IF NOT EXISTS is_verified BOOLEAN DEFAULT false;
-
--- 4. Dispatch Riders Table
-ALTER TABLE dispatch_riders 
-ADD COLUMN IF NOT EXISTS otp_code TEXT,
-ADD COLUMN IF NOT EXISTS otp_expires_at TIMESTAMP,
-ADD COLUMN IF NOT EXISTS is_verified BOOLEAN DEFAULT false;
-
--- 5. Towing Riders Table
-ALTER TABLE towing_riders 
-ADD COLUMN IF NOT EXISTS otp_code TEXT,
-ADD COLUMN IF NOT EXISTS otp_expires_at TIMESTAMP,
-ADD COLUMN IF NOT EXISTS is_verified BOOLEAN DEFAULT false;
-
--- Track user subscription status
-ALTER TABLE users ADD COLUMN subscription_status VARCHAR(20) DEFAULT 'inactive'; -- 'active', 'inactive', 'expired'
-ALTER TABLE users ADD COLUMN subscription_expires_at TIMESTAMP;
-
--- Track provider balances and commission rates
-ALTER TABLE service_providers ADD COLUMN wallet_balance DECIMAL(12, 2) DEFAULT 0.00;
-ALTER TABLE service_providers ADD COLUMN commission_rate DECIMAL(4, 2) DEFAULT 10.00; -- e.g., 10% commission
-
--- Transaction logs for auditing and splits
-CREATE TABLE transactions (
-    id SERIAL PRIMARY KEY,
-    user_id INT REFERENCES users(id),
-    provider_id INT REFERENCES service_providers(id),
-    total_amount DECIMAL(12, 2) NOT NULL,
-    commission_amount DECIMAL(12, 2) NOT NULL,
-    provider_payout DECIMAL(12, 2) NOT NULL,
-    payment_gateway_ref VARCHAR(255) UNIQUE NOT NULL,
-    status VARCHAR(50) DEFAULT 'pending', -- 'success', 'failed', 'escrow'
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+create table if not exists service_providers (
+  id serial primary key,
+  user_id text references users(id) on delete set null,
+  name text not null,
+  role text not null,
+  wallet_balance decimal(12, 2) default 0.00,
+  commission_rate decimal(4, 2) default 10.00,
+  lat double precision,
+  lng double precision,
+  last_updated timestamptz,
+  is_online boolean default false,
+  created_at timestamp default current_timestamp
 );
 
--- Track user subscription status
-ALTER TABLE users ADD COLUMN IF NOT EXISTS subscription_status VARCHAR(20) DEFAULT 'inactive'; -- 'active', 'inactive', 'expired'
-ALTER TABLE users ADD COLUMN IF NOT EXISTS subscription_expires_at TIMESTAMP;
-
--- If you use a unified service_providers table or track wallets per provider type, 
--- add wallet tracking columns. If your providers are split across tables (mechanics, dispatch_riders, etc.), 
--- make sure to add wallet_balance to those tables or create a centralized table:
-
-CREATE TABLE IF NOT EXISTS service_providers (
-    id SERIAL PRIMARY KEY,
-    name TEXT NOT NULL,
-    role TEXT NOT NULL, -- 'mechanic', 'towing', 'dispatch', 'parts_seller'
-    wallet_balance DECIMAL(12, 2) DEFAULT 0.00,
-    commission_rate DECIMAL(4, 2) DEFAULT 10.00, -- default 10% commission
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+create table if not exists commissions (
+  id serial primary key,
+  provider_id int,
+  total_amount decimal(12, 2) not null,
+  commission_amount decimal(12, 2) not null,
+  provider_payout decimal(12, 2) not null,
+  reference varchar(255) unique not null,
+  created_at timestamp default current_timestamp
 );
 
--- Transaction logs for auditing and splits
-CREATE TABLE IF NOT EXISTS commissions (
-    id SERIAL PRIMARY KEY,
-    provider_id INT,
-    total_amount DECIMAL(12, 2) NOT NULL,
-    commission_amount DECIMAL(12, 2) NOT NULL,
-    provider_payout DECIMAL(12, 2) NOT NULL,
-    reference VARCHAR(255) UNIQUE NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+-- Columns for databases created from an older schema.sql
+alter table users add column if not exists otp_code text;
+alter table users add column if not exists otp_expires_at timestamptz;
+alter table users add column if not exists is_verified boolean default false;
+alter table users add column if not exists subscription_status varchar(20) default 'inactive';
+alter table users add column if not exists subscription_expires_at timestamptz;
+
+alter table towing_riders add column if not exists user_id text references users(id) on delete set null;
+alter table towing_riders add column if not exists otp_code text;
+alter table towing_riders add column if not exists otp_expires_at timestamptz;
+alter table towing_riders add column if not exists is_verified boolean default false;
+
+alter table service_providers add column if not exists user_id text;
+alter table service_providers add column if not exists wallet_balance decimal(12, 2) default 0.00;
+alter table service_providers add column if not exists commission_rate decimal(4, 2) default 10.00;
+alter table service_providers add column if not exists lat double precision;
+alter table service_providers add column if not exists lng double precision;
+alter table service_providers add column if not exists last_updated timestamptz;
+alter table service_providers add column if not exists is_online boolean default false;
 
 create index if not exists idx_orders_user on orders(user_id);
 create index if not exists idx_receipts_user on receipts(user_id);
 create index if not exists idx_parts_seller on parts(seller_id);
 create index if not exists idx_payments_order on payments(order_id);
+create index if not exists idx_service_providers_user on service_providers(user_id);

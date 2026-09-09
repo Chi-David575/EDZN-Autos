@@ -12,48 +12,65 @@ const { mechanicsRouter } = require('../routes/mechanics');
 const { partsSellersRouter } = require('../routes/partsSellers');
 const { dispatchRidersRouter } = require('../routes/dispatchRiders');
 const { towingRidersRouter } = require('../routes/towingRiders');
+const { authenticateToken } = require('./auth');
+
+if (!process.env.JWT_SECRET) {
+  console.warn('[edzn] WARNING: JWT_SECRET is not set. Authenticated routes will fail until it is configured.');
+}
 
 const app = express();
 
 const allowedOrigins = (process.env.ALLOWED_ORIGINS || '').split(',').map((s) => s.trim()).filter(Boolean);
 app.use(
   cors({
-    origin: allowedOrigins.length ? allowedOrigins : true,
+    origin(origin, callback) {
+      if (!origin) return callback(null, true);
+      if (!allowedOrigins.length) {
+        if (process.env.NODE_ENV === 'production') {
+          return callback(new Error('CORS is not configured'));
+        }
+        return callback(null, true);
+      }
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+      return callback(new Error('Not allowed by CORS'));
+    },
     credentials: false
   })
 );
 
 app.use('/api/payments/webhook', express.raw({ type: 'application/json' }));
-app.use(express.json());
+app.use(express.json({ limit: '200kb' }));
 
-// POST /api/providers/update-location (Moved here where 'app' is defined!)
-app.post('/api/providers/update-location', async (req, res) => {
-    try {
-        const { providerId, latitude, longitude } = req.body;
-
-        // Update the provider's coordinates and set them as online/active
-        // Using PostGIS ST_SetSRID(ST_MakePoint(longitude, latitude), 4326)
-        const query = `
-            UPDATE service_providers 
-            SET location = ST_SetSRID(ST_MakePoint($1, $2), 4326),
-                last_updated = NOW(),
-                is_online = true
-            WHERE id = $3
-            RETURNING id, is_online, last_updated;
-        `;
-        
-        const values = [longitude, latitude, providerId];
-        const result = await pool.query(query, values);
-
-        if (result.rows.length === 0) {
-            return res.status(404).json({ error: 'Provider not found' });
-        }
-
-        res.json({ success: true, data: result.rows[0] });
-    } catch (err) {
-        console.error('Error updating provider location:', err);
-        res.status(500).json({ error: 'Server error updating location' });
+app.post('/api/providers/update-location', authenticateToken, async (req, res) => {
+  try {
+    const { providerId, latitude, longitude } = req.body;
+    const lat = Number(latitude);
+    const lng = Number(longitude);
+    if (!providerId || !Number.isFinite(lat) || !Number.isFinite(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+      return res.status(400).json({ error: 'providerId, latitude, and longitude are required.' });
     }
+
+    const query = `
+      UPDATE service_providers
+      SET lat = $1,
+          lng = $2,
+          last_updated = NOW(),
+          is_online = true
+      WHERE id = $3 AND user_id = $4
+      RETURNING id, is_online, last_updated;
+    `;
+
+    const result = await pool.query(query, [lat, lng, providerId, req.user.userId]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Provider not found' });
+    }
+
+    res.json({ success: true, data: result.rows[0] });
+  } catch (err) {
+    console.error('Error updating provider location:', err);
+    res.status(500).json({ error: 'Server error updating location' });
+  }
 });
 
 app.get('/health', (req, res) => res.json({ ok: true, service: 'edzn-autos-backend' }));
@@ -74,8 +91,6 @@ app.use(
     table: 'mechanics',
     fields: [
       { js: 'name', sql: 'name', required: true },
-      { js: 'email', sql: 'email' },
-      { js: 'password', sql: 'password' },
       { js: 'phone', sql: 'phone', required: true },
       { js: 'location', sql: 'location' },
       { js: 'specialties', sql: 'specialties' },
@@ -84,7 +99,7 @@ app.use(
       { js: 'bio', sql: 'bio' },
       { js: 'rating', sql: 'rating' },
       { js: 'verified', sql: 'verified' },
-      { js: 'photoUrl', sql: 'photo_url' },
+      { js: 'photoUrl', sql: 'photo' },
       { js: 'userId', sql: 'user_id' }
     ]
   })
@@ -96,8 +111,6 @@ app.use(
     table: 'parts_sellers',
     fields: [
       { js: 'shopName', sql: 'shop_name', required: true },
-      { js: 'email', sql: 'email' },
-      { js: 'password', sql: 'password' },
       { js: 'phone', sql: 'phone', required: true },
       { js: 'shopLocation', sql: 'shop_location' },
       { js: 'houseLocation', sql: 'house_location', required: true },
@@ -113,14 +126,12 @@ app.use(
     table: 'dispatch_riders',
     fields: [
       { js: 'name', sql: 'name', required: true },
-      { js: 'email', sql: 'email' },
-      { js: 'password', sql: 'password' },
       { js: 'phone', sql: 'phone', required: true },
       { js: 'vehicle', sql: 'vehicle' },
       { js: 'location', sql: 'location' },
       { js: 'rating', sql: 'rating' },
       { js: 'status', sql: 'status' },
-      { js: 'photoUrl', sql: 'photo_url' },
+      { js: 'photoUrl', sql: 'photo' },
       { js: 'userId', sql: 'user_id' }
     ]
   })
@@ -147,6 +158,7 @@ app.use(
   '/api/parts',
   makeCollectionRouter(pool, {
     table: 'parts',
+    openCreate: true,
     fields: [
       { js: 'name', sql: 'name', required: true },
       { js: 'category', sql: 'category', required: true },

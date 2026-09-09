@@ -1,5 +1,6 @@
 const express = require('express');
 const { rowToCamel, requireAdmin } = require('../src/middleware');
+const { requireSelfOrAdmin } = require('../src/auth');
 
 function receiptsRouter(pool) {
   const router = express.Router();
@@ -9,7 +10,7 @@ function receiptsRouter(pool) {
     res.json(rows.map(rowToCamel));
   });
 
-  router.get('/user/:userId', async (req, res) => {
+  router.get('/user/:userId', requireSelfOrAdmin('userId'), async (req, res) => {
     const { rows } = await pool.query('select * from receipts where user_id=$1 order by ts desc', [req.params.userId]);
     res.json(rows.map(rowToCamel));
   });

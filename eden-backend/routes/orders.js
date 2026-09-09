@@ -1,5 +1,6 @@
 const express = require('express');
 const { rowToCamel, requireAdmin } = require('../src/middleware');
+const { authenticateToken, requireSelfOrAdmin } = require('../src/auth');
 
 const STAGES_BY_TYPE = {
   towing: ['Requested', 'Tow driver assigned', 'Driver en route', 'Vehicle towed', 'Completed'],
@@ -14,30 +15,37 @@ const TERMINAL = new Set(['Completed', 'Delivered', 'Active']);
 function ordersRouter(pool) {
   const router = express.Router();
 
-  // Create an order AND its linked receipt in one call — every transaction
-  // must leave a receipt behind (the security/evidence-trail requirement).
-  router.post('/', async (req, res) => {
-    const { type, userId, details, amount } = req.body;
+  router.post('/', authenticateToken, async (req, res) => {
+    const { type, details, amount } = req.body;
     if (!type) return res.status(400).json({ error: 'type is required' });
+    const userId = req.user.userId;
+    const parsedAmount = Number(amount);
+    if (amount != null && (!Number.isFinite(parsedAmount) || parsedAmount < 0)) {
+      return res.status(400).json({ error: 'Invalid amount' });
+    }
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
-      const userRes = userId ? await client.query('select * from users where id=$1', [userId]) : { rows: [] };
+      const userRes = await client.query('select * from users where id=$1', [userId]);
       const user = userRes.rows[0];
-      const location = user ? { lat: user.lat, lng: user.lng, label: user.location_label } : { lat: null, lng: null, label: 'Not shared' };
+      if (!user) {
+        await client.query('ROLLBACK');
+        return res.status(401).json({ error: 'User not found' });
+      }
+      const location = { lat: user.lat, lng: user.lng, label: user.location_label };
       const stages = JSON.stringify([{ label: (STAGES_BY_TYPE[type] || ['Requested'])[0], ts: Date.now() }]);
 
       const orderRes = await client.query(
         `insert into orders (type, user_id, user_name, details, amount, location, stages)
          values ($1,$2,$3,$4,$5,$6,$7) returning *`,
-        [type, userId || null, user ? user.name : 'Guest', details || {}, amount || 0, location, stages]
+        [type, userId, user.name, details || {}, parsedAmount || 0, location, stages]
       );
       const order = orderRes.rows[0];
 
       const receiptRes = await client.query(
         `insert into receipts (order_id, user_id, user_name, amount, type, location)
          values ($1,$2,$3,$4,$5,$6) returning *`,
-        [order.id, userId || null, order.user_name, order.amount, type, location]
+        [order.id, userId, order.user_name, order.amount, type, location]
       );
 
       await client.query('COMMIT');
@@ -51,10 +59,7 @@ function ordersRouter(pool) {
     }
   });
 
-  // Move an order to its next stage. Call this from a dispatcher/admin
-  // action (or a provider's own app) as the job actually progresses —
-  // this replaces the frontend's old fake setInterval simulation.
-  router.post('/:id/advance', async (req, res) => {
+  router.post('/:id/advance', requireAdmin, async (req, res) => {
     try {
       const { rows } = await pool.query('select * from orders where id=$1', [req.params.id]);
       const order = rows[0];
@@ -62,7 +67,7 @@ function ordersRouter(pool) {
       const sequence = STAGES_BY_TYPE[order.type] || ['Requested', 'Processing', 'Completed'];
       const currentLabels = order.stages.map((s) => s.label);
       const nextLabel = sequence.find((l) => !currentLabels.includes(l));
-      if (!nextLabel) return res.json(rowToCamel(order)); // already at final stage
+      if (!nextLabel) return res.json(rowToCamel(order));
       const newStages = [...order.stages, { label: nextLabel, ts: Date.now() }];
       const newStatus = TERMINAL.has(nextLabel) ? 'completed' : 'in_progress';
       const { rows: updated } = await pool.query(
@@ -81,15 +86,19 @@ function ordersRouter(pool) {
     res.json(rows.map(rowToCamel));
   });
 
-  router.get('/user/:userId', async (req, res) => {
+  router.get('/user/:userId', requireSelfOrAdmin('userId'), async (req, res) => {
     const { rows } = await pool.query('select * from orders where user_id=$1 order by created_at desc', [req.params.userId]);
     res.json(rows.map(rowToCamel));
   });
 
-  router.get('/:id', async (req, res) => {
+  router.get('/:id', authenticateToken, async (req, res) => {
     const { rows } = await pool.query('select * from orders where id=$1', [req.params.id]);
     if (!rows[0]) return res.status(404).json({ error: 'Not found' });
-    res.json(rowToCamel(rows[0]));
+    const order = rows[0];
+    if (order.user_id && String(order.user_id) !== String(req.user.userId)) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+    res.json(rowToCamel(order));
   });
 
   router.delete('/:id', requireAdmin, async (req, res) => {

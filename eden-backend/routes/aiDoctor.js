@@ -1,4 +1,5 @@
 const express = require('express');
+const { authenticateToken } = require('../src/auth');
 
 const SYSTEM_PROMPT =
   "You are the EDZN Autos AI Car Doctor, embedded in a Nigerian roadside-assistance app. " +
@@ -8,22 +9,35 @@ const SYSTEM_PROMPT =
   "booking an emergency mechanic or towing on EDZN. Keep replies under 120 words, no markdown " +
   "headers, conversational.";
 
+const MAX_MESSAGES = 20;
+const MAX_TEXT = 2000;
+
 function aiDoctorRouter() {
   const router = express.Router();
 
-  router.post('/', async (req, res) => {
-    const { messages } = req.body; // [{role:'user'|'ai', text:string}, ...]
+  router.post('/', authenticateToken, async (req, res) => {
+    const { messages } = req.body;
     if (!Array.isArray(messages) || messages.length === 0) {
       return res.status(400).json({ error: 'messages array is required' });
+    }
+    if (messages.length > MAX_MESSAGES) {
+      return res.status(400).json({ error: 'Too many messages.' });
     }
     if (!process.env.ANTHROPIC_API_KEY) {
       return res.status(500).json({ error: 'Server is missing ANTHROPIC_API_KEY.' });
     }
     try {
-      const anthropicMessages = messages.map((m) => ({
+      const anthropicMessages = messages.slice(-MAX_MESSAGES).map((m) => ({
         role: m.role === 'user' ? 'user' : 'assistant',
-        content: m.text
+        content: String(m.text || '').slice(0, MAX_TEXT)
       }));
+      if (!anthropicMessages.some((m) => m.role === 'user' && m.content.trim())) {
+        return res.status(400).json({ error: 'A user message is required.' });
+      }
+      if (anthropicMessages[0].role !== 'user') {
+        anthropicMessages.unshift({ role: 'user', content: 'Please diagnose this car issue.' });
+      }
+
       const response = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
@@ -41,7 +55,7 @@ function aiDoctorRouter() {
       const data = await response.json();
       if (!response.ok) {
         console.error('Anthropic API error', data);
-        return res.status(502).json({ error: 'AI service error', detail: data });
+        return res.status(502).json({ error: 'AI service error' });
       }
       const text = (data.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('\n');
       res.json({ text: text || "Sorry, I couldn't process that — please try rephrasing." });
